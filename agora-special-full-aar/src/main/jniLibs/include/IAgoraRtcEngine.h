@@ -13,9 +13,14 @@
 #include "AgoraBase.h"
 #include "IAgoraService.h"
 #include "IAgoraLog.h"
+#include <string>
 
 namespace agora {
 namespace rtc {
+    class IMediaRecorderObserver;
+    class MediaRecorderConfiguration;
+    class ISnapshotCallback;
+
     typedef unsigned int uid_t;
     typedef void* view_t;
 /** Maximum length of the device ID.
@@ -205,7 +210,10 @@ enum MEDIA_DEVICE_STATE_TYPE
     MEDIA_DEVICE_STATE_NOT_PRESENT = 4,
     /** 8: The device is unplugged.
     */
-    MEDIA_DEVICE_STATE_UNPLUGGED = 8
+    MEDIA_DEVICE_STATE_UNPLUGGED = 8,
+    /** 16: The device is not recommended.
+    */
+    MEDIA_DEVICE_STATE_UNRECOMMENDED = 16
 };
 
 /** Media device types.
@@ -263,6 +271,8 @@ enum LOCAL_VIDEO_STREAM_ERROR {
     LOCAL_VIDEO_STREAM_ERROR_ENCODE_FAILURE = 5,
     /** No camera device. */
     LOCAL_VIDEO_STREAM_ERROR_DEVICE_NOT_FOUND = 6,
+    /** invalid camera id. */
+    LOCAL_VIDEO_STREAM_ERROR_DEVICE_INVALID_ID = 7,
 };
 
 /** Local audio state types.
@@ -311,7 +321,13 @@ enum LOCAL_AUDIO_STREAM_ERROR
     LOCAL_AUDIO_STREAM_ERROR_NO_RECORDING_DEVICE = 6,
     /** 7: No playout audio device.
     */
-    LOCAL_AUDIO_STREAM_ERROR_NO_PLAYOUT_DEVICE = 7
+    LOCAL_AUDIO_STREAM_ERROR_NO_PLAYOUT_DEVICE = 7,
+    /** 8: Invalid record audio device id.
+    */
+    LOCAL_AUDIO_STREAM_ERROR_RECORD_INVALID_ID = 8,
+    /** 9: Invalid playout audio device id.
+    */
+    LOCAL_AUDIO_STREAM_ERROR_PLAYOUT_INVALID_ID = 9,
 };
 
 /** Audio recording qualities.
@@ -995,6 +1011,11 @@ enum STREAM_SUBSCRIBE_STATE {
     SUB_STATE_SUBSCRIBED = 3
 };
 
+enum VIDEO_BUFFERING_STATE {
+    VIDEO_BUFFERING_STATE_BUFFERING_START = 0,
+    VIDEO_BUFFERING_STATE_BUFFERING_END = 1,
+};
+
 /** The remote video frozen type. */
 enum XLA_REMOTE_VIDEO_FROZEN_TYPE {
     /** 0: 500ms video frozen type.
@@ -1198,6 +1219,12 @@ enum CONNECTION_STATE_TYPE
   CONNECTION_STATE_FAILED = 5,
 };
 
+enum UNRECOMMEND_DEVICE_TYPE
+{
+    /** 0: Audio may not play correctly in HDMI  device */
+    HDMI = 0
+};
+
 /** Reasons for a connection state change. */
 enum CONNECTION_CHANGED_REASON_TYPE
 {
@@ -1307,17 +1334,6 @@ enum AUDIO_SESSION_OPERATION_RESTRICTION {
     AUDIO_SESSION_OPERATION_RESTRICTION_ALL = 1 << 7,
 };
 #endif
-
-/** Audio recording position. */
-enum AUDIO_RECORDING_POSITION {
-  /** The SDK will record the voices of all users in the channel. */
-  AUDIO_RECORDING_POSITION_MIXED_RECORDING_AND_PLAYBACK = 0,
-  /** The SDK will record the voice of the local user. */
-  AUDIO_RECORDING_POSITION_RECORDING = 1,
-  /** The SDK will record the voices of remote users. */
-  AUDIO_RECORDING_POSITION_MIXED_PLAYBACK = 2,
-};
-
 
 /** The uplink or downlink last-mile network probe test result. */
 struct LastmileProbeOneWayResult {
@@ -1729,6 +1745,9 @@ struct RemoteVideoStats
      * The total active time (ms) of the remote video stream after the remote user publish the video stream.
      */
     int publishDuration;
+
+    int endToEndDelayMs;
+    int avSyncTimeMs;
 };
 
 /** Audio statistics of the local user */
@@ -1792,6 +1811,8 @@ struct RemoteAudioStats
      * The total active time (ms) of the remote audio stream after the remote user publish the audio stream.
      */
     int publishDuration;
+
+    int endToEndDelayMs;
 };
 
 /**
@@ -1936,40 +1957,6 @@ struct VideoEncoderConfiguration {
         , orientationMode(ORIENTATION_MODE_ADAPTIVE)
         , degradationPreference(MAINTAIN_QUALITY)
         , mirrorMode(VIDEO_MIRROR_MODE_AUTO)
-    {}
-};
-
-/** Audio recording configurations.
- */
-struct AudioRecordingConfiguration
-{
-    /** Pointer to the absolute file path of the recording file. The string of the file name is in UTF-8.
-
-     The SDK determines the storage format of the recording file by the file name suffix:
-
-     - .wav: Large file size with high fidelity.
-     - .aac: Small file size with low fidelity.
-
-     Ensure that the directory to save the recording file exists and is writable.
-     */
-    char* filePath;
-    /** Sets the audio recording quality. See #AUDIO_RECORDING_QUALITY_TYPE.
-
-     @note It is effective only when the recording format is AAC.
-     */
-    AUDIO_RECORDING_QUALITY_TYPE recordingQuality;
-    /** Sets the audio recording position. See #AUDIO_RECORDING_POSITION.
-     */
-    AUDIO_RECORDING_POSITION recordingPosition;
-    AudioRecordingConfiguration()
-        : filePath(nullptr)
-        , recordingQuality(AUDIO_RECORDING_QUALITY_MEDIUM)
-        , recordingPosition (AUDIO_RECORDING_POSITION_MIXED_RECORDING_AND_PLAYBACK)
-    {}
-    AudioRecordingConfiguration(char* path, AUDIO_RECORDING_QUALITY_TYPE quality, AUDIO_RECORDING_POSITION position)
-        : filePath(path)
-        , recordingQuality(quality)
-        , recordingPosition(position)
     {}
 };
 
@@ -2481,6 +2468,29 @@ struct UserInfo {
       : uid(0) {
     userAccount[0] = '\0';
   }
+};
+
+enum MAX_CONTENT_INSPECT_FEATURE_RATE_TYPE
+{
+  /** The maximum count of content inspect feature type is 32.
+   */
+  MAX_CONTENT_INSPECT_FEATURE_RATE_COUNT = 32
+};
+/** Definition of ContentInspectExtraConfig.
+*/
+struct ContentInspectExtraConfig {
+  /** The extra information, max lenght of extInfo is 1024.
+   */
+  const char* extInfo;
+  /**The featureRate, max lenght of the array is 32.
+   */
+  int featureRate[MAX_CONTENT_INSPECT_FEATURE_RATE_COUNT];
+  /**The featureRateCount.
+   */
+  int featureRateCount;
+  ContentInspectExtraConfig()
+      : extInfo(NULL),
+      featureRateCount(0) {}
 };
 
 /** Definition of IPacketObserver.
@@ -3125,7 +3135,6 @@ public:
         (void)deviceType;
         (void)deviceState;
     }
-
     /** Occurs when the volume of the playback device, microphone, or application changes.
 
      @param deviceType Device type: #MEDIA_DEVICE_TYPE.
@@ -3136,6 +3145,17 @@ public:
      */
     virtual void onAudioDeviceVolumeChanged(MEDIA_DEVICE_TYPE deviceType, int volume, bool muted) {
         (void)deviceType;
+        (void)volume;
+        (void)muted;
+    }
+
+     /** Occurs when application volume changes。
+     @param volume Volume of the device. The value ranges between 0 and 255.
+     @param muted
+     - true: The audio device is muted.
+     - false: The audio device is not muted.
+     */
+    virtual void onApplicationVolumeChanged(int volume, bool muted) {
         (void)volume;
         (void)muted;
     }
@@ -3302,6 +3322,12 @@ public:
         (void)elapsed;
     }
 
+    virtual void onVideoBufferingStateChanged(uid_t uid, VIDEO_BUFFERING_STATE state, int64_t timestampInMs) {
+        (void)uid;
+        (void)state;
+        (void)timestampInMs;
+    }
+
 	/** Occurs when a specified remote user enables/disables the local video
      * capturing function.
      *
@@ -3425,8 +3451,8 @@ public:
    */
   virtual void onRtmpStreamingStateChanged(const char *url, RTMP_STREAM_PUBLISH_STATE state, RTMP_STREAM_PUBLISH_ERROR errCode) {
     (void) url;
-    (RTMP_STREAM_PUBLISH_STATE) state;
-    (RTMP_STREAM_PUBLISH_ERROR) errCode;
+    (void) state;
+    (void) errCode;
   }
 
     /** Reports the result of calling the \ref IRtcEngine::addPublishStreamUrl "addPublishStreamUrl" method. (CDN live only.)
@@ -4184,6 +4210,124 @@ public:
     virtual void onMetadataReceived(const Metadata &metadata) = 0;
 };
 
+/** Definition of AVDataObserver
+*/
+class IAVDataObserver
+{
+public:
+    /** Metadata type of the observer.
+     @note We only support video metadata for now.
+     */
+    enum AVDATA_TYPE
+    {
+        /** 0: the metadata type is unknown.
+         */
+        AVDATA_UNKNOWN = 0,
+        /** 1: the metadata type is video.
+         */
+        AVDATA_VIDEO = 1,
+        /** 2: the metadata type is video.
+         */
+        AVDATA_AUDIO = 2,
+    };
+
+    enum CODEC_VIDEO
+    {
+        /** 0: h264 avc codec.
+         */
+        CODEC_VIDEO_AVC = 0,
+        /** 1: h265 hevc codec.
+         */
+        CODEC_VIDEO_HEVC = 1,
+        /** 2: vp8 codec.
+         */
+        CODEC_VIDEO_VP8 = 2,
+    };
+
+    enum CODEC_AUDIO
+    {
+        /** 0: PCM audio codec.
+         */
+        CODEC_AUDIO_PCM = 0,
+        /** 1: aac audio codec.
+         */
+        CODEC_AUDIO_AAC = 1,
+        /** 2: G711 audio codec.
+         */
+        CODEC_AUDIO_G722 = 2,
+    };
+
+
+    struct VDataInfo
+    {
+        unsigned int codec;
+        unsigned int width;
+        unsigned int height;
+        int frameType;
+        int rotation;
+        bool equal(const VDataInfo &vinfo) {
+            return codec == vinfo.codec &&
+                width == vinfo.width &&
+                height == vinfo.height &&
+                rotation == vinfo.rotation;
+        }
+    };
+
+    struct ADataInfo
+    {
+        unsigned int codec;
+        unsigned int bitwidth;
+        unsigned int sample_rate;
+        unsigned int channel;
+        unsigned int sample_size;
+        
+        bool equal(const ADataInfo &ainfo) { 
+            return codec == ainfo.codec && 
+                bitwidth == ainfo.bitwidth && 
+                sample_rate == ainfo.sample_rate &&
+                channel == ainfo.channel;
+        };
+    };
+
+    struct AVData
+    {
+        /** The User ID. reserved
+         - For the receiver: the ID of the user who owns the data.
+         */
+        unsigned int uid;
+        /** 
+         - data type, audio / video.
+         */
+        enum AVDATA_TYPE type;		
+        /** Buffer size of the sent or received Metadata.
+         */
+        unsigned int size;
+        /** Buffer address of the sent or received Metadata.
+         */
+        unsigned char *buffer;
+        /** Time statmp of the frame following the metadata.
+        */
+        unsigned int timestamp;
+        /**
+         * Video frame info
+         */
+        VDataInfo vinfo;
+        /**
+         * Audio frame info
+         */
+        ADataInfo ainfo;
+    };
+
+    virtual ~IAVDataObserver() {};
+
+    /** Occurs when audio/video data ready.
+     
+     @param metadata The received Metadata.
+     */
+    virtual bool onAVDataReady(const AVData &avdata) = 0;
+};
+
+
 /** IRtcEngine is the base interface class of the Agora SDK that provides the main Agora SDK methods invoked by your application.
 
 Enable the Agora SDK's communication functionality through the creation of an IRtcEngine object, then call the methods of this object.
@@ -4346,6 +4490,44 @@ public:
      - < 0: Failure.
      */
     virtual int leaveChannel() = 0;
+    
+    /** Publishes the local stream to the channel.
+     
+     You must keep the following restrictions in mind when calling this method. Otherwise, the SDK returns the #ERR_REFUSED (5):
+     - This method publishes one stream only to the channel corresponding to the current `IChannel` object.
+     - In the interactive live streaming channel, only a host can call this method. To switch the client role, call \ref agora::rtc::IChannel::setClientRole "setClientRole" of the current `IChannel` object.
+     - You can publish a stream to only one channel at a time. For details on joining multiple channels, see the advanced guide *Join Multiple Channels*.
+     - JoinChannel of IRtcEngine will auto call this method.
+     
+     @return
+     - 0: Success.
+     - < 0: Failure.
+     - #ERR_REFUSED (5): The method call is refused.
+     */
+    virtual int publish() = 0;
+    
+    /** Stops publishing a stream to the channel.
+     
+     If you call this method in a channel where you are not publishing streams, the SDK returns #ERR_REFUSED (5).
+     Leave channel will auto call this method if you are publishing a stream with this channel.
+     
+     @return
+     - 0: Success.
+     - < 0: Failure.
+     - #ERR_REFUSED (5): The method call is refused.
+     */
+    virtual int unpublish() = 0;
+
+    /** Bind local user and a remote user as an audio&video sync group. The remote user is defined by cid and uid.
+
+     Media streams in the same sync group are time-synced. 
+     @param channelId The channel id
+     @param uid The user ID of the remote user to be bound with (local user)
+     @return
+     - 0: Success.     
+     - < 0: Failure.
+     */
+    virtual int setAVSyncSource(const char *channelId, uid_t uid) = 0;
 
     /** Gets a new token when the current token expires after a period of time.
 
@@ -4941,19 +5123,6 @@ public:
      - < 0: Failure.
      */
 	virtual int startAudioRecording(const char* filePath, AUDIO_RECORDING_QUALITY_TYPE quality) = 0;
-    /** Starts an audio recording.
-
-     The SDK allows recording during a call.
-     This method is usually called after the \ref agora::rtc::IRtcEngine::joinChannel "joinChannel" method.
-     The recording automatically stops when the \ref agora::rtc::IRtcEngine::leaveChannel "leaveChannel" method is called.
-
-     @param config Sets the audio recording configuration. See #AudioRecordingConfiguration.
-
-     @return
-     - 0: Success.
-     - < 0: Failure.
-     */
-	virtual int startAudioRecording(const AudioRecordingConfiguration& config) = 0;
     /** Stops an audio recording on the client.
 
      You can call this method before calling the \ref agora::rtc::IRtcEngine::leaveChannel "leaveChannel" method else, the recording automatically stops when the \ref agora::rtc::IRtcEngine::leaveChannel "leaveChannel" method is called.
@@ -6281,6 +6450,20 @@ public:
      - < 0: Failure.
      */
     virtual int registerMediaMetadataObserver(IMetadataObserver *observer, IMetadataObserver::METADATA_TYPE type) = 0;
+    
+    /** Enable the content inspect.
+
+     @param enabled Sets whether or not to enable content inspect:
+    - true: enables content inspect.
+    - false: disables content inspect.
+
+     @return
+     - 0: Success.
+     - < 0: Failure.
+     */
+    virtual int enableContentInspect(bool enabled) {return -1;}
+
+    virtual int setContentInspectExtraConfig(const ContentInspectExtraConfig &config) = 0;
 };
 
 
@@ -6637,7 +6820,7 @@ public:
      - < 0: Failure.
      */
     int stopAudioRecording() {
-        return setParameters("{\"che.audio.stop_recording\":true, \"che.audio.stop_nearend_recording\":true, \"che.audio.stop_farend_recording\":true}");
+        return m_parameter ? m_parameter->setBool("che.audio.stop_recording", true) : -ERR_NOT_INITIALIZED;
     }
 
     /** Starts playing and mixing the music file.
@@ -7824,6 +8007,10 @@ public:
      */
     int setInEarMonitoringVolume(int volume) {
         return m_parameter ? m_parameter->setInt("che.audio.headset.monitoring.parameter", volume) : -ERR_NOT_INITIALIZED;
+    }
+
+    int enableContentInspect(bool enabled) {
+        return m_parameter ? m_parameter->setBool("rtc.video.enable_content_inspect", enabled) : -ERR_NOT_INITIALIZED;
     }
 
 protected:

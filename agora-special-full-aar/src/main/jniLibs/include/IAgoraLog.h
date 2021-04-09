@@ -29,7 +29,5 @@ class ILogWriter {
   virtual int32_t writeLog(const char* message, uint16_t length) = 0;
   virtual ~ILogWriter() {}
 };
-
-
 } //namespace commons
 } //namespace agora
