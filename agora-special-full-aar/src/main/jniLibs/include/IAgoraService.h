@@ -25,9 +25,8 @@ class IAgoraService
 {
 protected:
     virtual ~IAgoraService(){}
-
 public:
-    AGORA_CPP_API static void release ();
+    virtual void release() = 0;
 
 	/** Initializes the engine.
      
