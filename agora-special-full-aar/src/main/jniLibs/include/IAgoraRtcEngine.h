@@ -754,6 +754,9 @@ enum RTMP_STREAM_PUBLISH_ERROR
   RTMP_STREAM_PUBLISH_ERROR_STREAM_NOT_FOUND = 9,
   /** The format of the RTMP or RTMPS streaming URL is not supported. Check whether the URL format is correct. */
   RTMP_STREAM_PUBLISH_ERROR_FORMAT_NOT_SUPPORTED = 10,
+  /** The RTMP streaming unpublishes successfully. */
+  RTMP_STREAM_UNPUBLISH_ERROR_OK = 100,
+
 };
 
 /** Events during the RTMP or RTMPS streaming. */
@@ -762,6 +765,9 @@ enum RTMP_STREAMING_EVENT
   /** An error occurs when you add a background image or a watermark image to the RTMP or RTMPS stream.
    */
   RTMP_STREAMING_EVENT_FAILED_LOAD_IMAGE = 1,
+  /** The chosen URL address is already in use for CDN live streaming.
+   */
+  RTMP_STREAMING_EVENT_URL_ALREADY_IN_USE = 2,
 };
 
 /** States of importing an external video stream in the interactive live streaming. */
