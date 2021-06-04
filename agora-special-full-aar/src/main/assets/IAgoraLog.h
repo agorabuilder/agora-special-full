@@ -30,6 +30,5 @@ class ILogWriter {
   virtual ~ILogWriter() {}
 };
 
-
-} //namespace commons
-} //namespace agora
+}  // namespace commons
+}  // namespace agora
