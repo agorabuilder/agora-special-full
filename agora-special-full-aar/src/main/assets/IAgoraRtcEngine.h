@@ -2049,42 +2049,6 @@ struct RtcStats {
   RtcStats() : duration(0), txBytes(0), rxBytes(0), txAudioBytes(0), txVideoBytes(0), rxAudioBytes(0), rxVideoBytes(0), txKBitRate(0), rxKBitRate(0), rxAudioKBitRate(0), txAudioKBitRate(0), rxVideoKBitRate(0), txVideoKBitRate(0), lastmileDelay(0), txPacketLossRate(0), rxPacketLossRate(0), userCount(0), cpuAppUsage(0), cpuTotalUsage(0), gatewayRtt(0), memoryAppUsageRatio(0), memoryTotalUsageRatio(0), memoryAppUsageInKbytes(0) {}
 };
 
-/** Ap message type
- */
-enum AP_NOTIFY_MESSAGE_TYPE {
-  AP_NOTIFY_MSG_NONE = 0,
-  AP_NOTIFY_MSG_INFO,
-  AP_NOTIFY_MSG_RSSI,
-  AP_NOTIFY_MSG_UPPHYRATE,
-  AP_NOTIFY_MSG_DNPHYRATE,
-  AP_NOTIFY_MSG_UPBR,
-  AP_NOTIFY_MSG_DNBR,
-  AP_NOTIFY_MSG_RESERVE,
-};
-
-/** Ap qos trend type
- */
-enum AP_QOS_TREND {
-  AP_QOS_TREND_HOLD = 0,
-  AP_QOS_TREND_UP = 1,
-  AP_QOS_TREND_DOWN = 2,
-  AP_QOS_TREND_RESERVE,
-};
-
-struct RtcApQosMsg {
-  /**
-   The AP info for demo
-   @note
-  */
-  uint32_t value;
-  int netQuality;
-  int qosTrend;    // AP_QOS_TREND
-  int apMsgType;   // AP_NOTIFY_MESSAGE_TYPE
-  char* apMsgStr;  // when apMsgType==AP_MESSAGE_INFO
-
-  RtcApQosMsg() : value(0), netQuality(0), qosTrend(AP_QOS_TREND_HOLD), apMsgType(AP_NOTIFY_MSG_NONE), apMsgStr(nullptr) {}
-};
-
 /** Quality change of the local video in terms of target frame rate and target bit rate since last count.
  */
 enum QUALITY_ADAPT_INDICATION {
@@ -4616,13 +4580,8 @@ The SDK triggers this callback when the local user fails to receive the stream m
     (void)reason;
   }
 
-  /** Occurs when the AP message received.
-
-   @param apQosMsg
-   */
-  virtual void onNetworkApMessage(const RtcApQosMsg& apQosMsg) { (void)apQosMsg; }
-
   /** Occurs when the local network type changes.
+
   When the network connection is interrupted, this callback indicates whether the interruption is caused by a network type change or poor network conditions.
 
    @param type See #NETWORK_TYPE.
