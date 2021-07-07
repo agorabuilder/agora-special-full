@@ -186,13 +186,6 @@ public:
         (void)reason;
         (void)elapsed;
     }
-
-    virtual void onVideoBufferingStateChanged(IChannel *rtcChannel, uid_t uid, VIDEO_BUFFERING_STATE state, int64_t timestampInMs) {
-        (void)rtcChannel;
-        (void)uid;
-        (void)state;
-        (void)timestampInMs;
-    }
     
     virtual void onStreamMessage(IChannel *rtcChannel, uid_t uid, int streamId, const char* data, size_t length) {
         (void)rtcChannel;
@@ -291,32 +284,12 @@ public:
                                            const ChannelMediaOptions& options) = 0;
     
     virtual int leaveChannel() = 0;
-
-    virtual int setAVSyncSource(const char *channelId, uid_t uid) = 0;
     
-    /** Publishes the local stream to the channel.
-     
-     You must keep the following restrictions in mind when calling this method. Otherwise, the SDK returns the #ERR_REFUSED (5):
-     - This method publishes one stream only to the channel corresponding to the current `IChannel` object.
-     - In the interactive live streaming channel, only a host can call this method. To switch the client role, call \ref agora::rtc::IChannel::setClientRole "setClientRole" of the current `IChannel` object.
-     - You can publish a stream to only one channel at a time. For details on joining multiple channels, see the advanced guide *Join Multiple Channels*.
-     
-     @return
-     - 0: Success.
-     - < 0: Failure.
-     - #ERR_REFUSED (5): The method call is refused.
+    /** Allows this connection to upload stream. This method will unpublish the current publishing connection if there exists.
      */
     virtual int publish() = 0;
     
-    /** Stops publishing a stream to the channel.
-     
-     If you call this method in a channel where you are not publishing streams, the SDK returns #ERR_REFUSED (5).
-     Leave channel will auto call this method if you are publishing a stream with this channel.
-     
-     @return
-     - 0: Success.
-     - < 0: Failure.
-     - #ERR_REFUSED (5): The method call is refused.
+    /** Stops publishing stream.
      */
     virtual int unpublish() = 0;
     

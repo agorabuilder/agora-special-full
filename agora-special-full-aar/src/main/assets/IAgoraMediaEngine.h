@@ -51,16 +51,11 @@ public:
   enum VIDEO_FRAME_TYPE {
     FRAME_TYPE_YUV420 = 0,  //YUV 420 format
     FRAME_TYPE_RGBA = 2,    // RGBA format
-    FRAME_TYPE_CVPIXELBUFFER = 3, // iOS CVPixelBuffer
   };
   enum VIDEO_OBSERVER_POSITION {
     POSITION_POST_CAPTURER = 1 << 0,
     POSITION_PRE_RENDERER = 1 << 1,
     POSITION_PRE_ENCODER = 1 << 2,
-  };
-  enum VIDEO_FRAME_MODE {
-    VIDEO_FRAME_MODE_READONLY = 0,
-    VIDEO_FRAME_MODE_WRITE = 1,
   };
   struct VideoFrame {
     VIDEO_FRAME_TYPE type;
@@ -75,7 +70,6 @@ public:
     int rotation; // rotation of this frame (0, 90, 180, 270)
     int64_t renderTimeMs;
     int avsync_type;
-    void* pixelBuffer; // iOS CVPixelBuffer
   };
 public:
   virtual bool onCaptureVideoFrame(VideoFrame& videoFrame) = 0;
@@ -86,7 +80,6 @@ public:
   virtual bool isMultipleChannelFrameWanted() { return false; }
   virtual bool onRenderVideoFrameEx(const char *channelId, unsigned int uid, VideoFrame& videoFrame) { return true; }
   virtual VIDEO_FRAME_TYPE getVideoFormatPreference() { return FRAME_TYPE_YUV420; }
-  virtual VIDEO_FRAME_MODE getVideoFrameMode() = 0;
 };
 
 class IVideoFrame
@@ -278,7 +271,7 @@ public:
 	  * @param videoEncodedFrameInfo The information of the encoded video frame: EncodedVideoFrameInfo.
 	  *
 	  */
-	virtual bool OnEncodedVideoImageReceived(const unsigned char* imageBuffer, unsigned int length, const EncodedVideoFrameInfo& videoEncodedFrameInfo) = 0;
+	virtual bool OnEncodedVideoImageReceived(const uint8_t* imageBuffer, unsigned int length, const EncodedVideoFrameInfo& videoEncodedFrameInfo) = 0;
 
 	virtual ~IVideoEncodedImageReceiver() {}
 };
@@ -287,9 +280,7 @@ class IMediaEngine {
 public:
   virtual void release() = 0;
   virtual int registerAudioFrameObserver(IAudioFrameObserver* observer) = 0;
-  virtual int registerAudioFrameRecorderObserver(IAudioFrameObserver* observer) = 0;
   virtual int registerVideoFrameObserver(IVideoFrameObserver* observer) = 0;
-  virtual int registerVideoFrameSnapshotObserver(IVideoFrameObserver* observer) = 0;
   virtual int registerVideoRenderFactory(IExternalVideoRenderFactory* factory) = 0;
   virtual int pushAudioFrame(MEDIA_SOURCE_TYPE type, IAudioFrameObserver::AudioFrame *frame, bool wrap) = 0;
   virtual int pushAudioFrame(IAudioFrameObserver::AudioFrame *frame) = 0;
