@@ -789,6 +789,12 @@ enum VIRTUAL_BACKGROUND_SOURCE_STATE_REASON {
   VIRTUAL_BACKGROUND_SOURCE_STATE_REASON_DEVICE_NOT_SUPPORTED = 3,
 };
 
+enum CONTENT_INSPECT_RESULT {
+  CONTENT_INSPECT_NEUTRAL = 1,
+  CONTENT_INSPECT_SEXY = 2,
+  CONTENT_INSPECT_PORN = 3,
+};
+
 /** Reasons for a user being offline. */
 enum USER_OFFLINE_REASON_TYPE {
   /** 0: The user quits the call. */
@@ -954,6 +960,22 @@ enum VIDEO_CODEC_TYPE {
   VIDEO_CODEC_EVP = 3,
   /** Enhanced H264 */
   VIDEO_CODEC_E264 = 4,
+};
+
+// Advance video codec types
+enum VIDEO_ENCODER_CODEC_TYPE {
+  VIDEO_ENCODER_CODEC_VP8 = 0,
+  VIDEO_ENCODER_CODEC_H264 = 1,
+  VIDEO_ENCODER_CODEC_H265 = 2,
+  VIDEO_ENCODER_CODEC_I420 = 3,
+  VIDEO_ENCODER_CODEC_RED = 4,
+  VIDEO_ENCODER_CODEC_ULPFEC = 5,
+  VIDEO_ENCODER_CODEC_Generic = 6,
+  VIDEO_ENCODER_CODEC_Unknown = 7,
+  VIDEO_ENCODER_CODEC_AndroidTexture = 8,
+  VIDEO_ENCODER_CODEC_H264DXVA2 = 9,
+  VIDEO_ENCODER_CODEC_H265DXVA2 = 10,
+  VIDEO_ENCODER_CODEC_AV1 = 11,
 };
 
 /** Video Codec types for publishing streams. */
@@ -1877,6 +1899,8 @@ enum NETWORK_TYPE {
   NETWORK_TYPE_MOBILE_3G = 4,
   /** 5: The network type is mobile 4G. */
   NETWORK_TYPE_MOBILE_4G = 5,
+  /** 6: The network type is mobile 5G. */
+  NETWORK_TYPE_MOBILE_5G = 6,
 };
 /// @cond
 /**
@@ -4558,6 +4582,50 @@ The SDK triggers this callback when the local user fails to receive the stream m
     (void)reason;
   }
 
+  /**
+   * Reports video encoder codec type when codec changed
+   *
+   * Only for v3.4.7.206
+   *
+   * The SDK will automatically change encoding codec according to current context, and triggers this callback
+   * to report which codec is enabled.
+   *
+   * @note this callback only react to high stream codec type change.
+   *
+   * @param isHardware Whether the encoder is hardware accelerated:
+   * - true: Hardware accelerated.
+   * - false: Not hardware accelerated .
+   * @param codecType The current encoding codec
+   * success. See #VIDEO_ENCODER_CODEC_TYPE.
+   */
+  virtual void onVideoEncoderCodecChanged(bool isHardware, VIDEO_ENCODER_CODEC_TYPE codecType) {
+    (void)isHardware;
+    (void)codecType;
+  }
+
+  /** Reports result of Content Inspect*/
+  virtual void onContentInspectResult(CONTENT_INSPECT_RESULT result) { (void)result; }
+  /** Occurs when takeSnapshot API result is obtained
+   *
+   *
+   * @brief snapshot taken callback
+   *
+   * @param channel channel name
+   * @param uid user id
+   * @param filePath image is saveed file path
+   * @param width image width
+   * @param height image height
+   * @param errCode 0 is ok negative is error
+   */
+  virtual void onSnapshotTaken(const char* channel, uid_t uid, const char* filePath, int width, int height, int errCode) {
+    (void)channel;
+    (void)uid;
+    (void)filePath;
+    (void)width;
+    (void)height;
+    (void)errCode;
+  }
+
   /** Occurs when the state of the media stream relay changes.
    *
    * The SDK returns the state of the current media relay with any error
@@ -5483,24 +5551,6 @@ class IMetadataObserver {
    @param metadata The received Metadata.
    */
   virtual void onMetadataReceived(const Metadata& metadata) = 0;
-};
-
-/** Definition of ISnapshotCallback
- */
-class ISnapshotCallback {
- public:
-  /**
-   * @brief snapshot taken callback
-   *
-   * @param channel channel name
-   * @param uid user id
-   * @param filePath image is saveed file path
-   * @param width image width
-   * @param height image height
-   * @param errCode 0 is ok negative is error
-   */
-  virtual void onSnapshotTaken(const char* channel, uid_t uid, const char* filePath, int width, int height, int errCode) = 0;
-  virtual ~ISnapshotCallback(){};
 };
 
 /** Encryption mode.
@@ -9354,19 +9404,19 @@ class IRtcEngine {
   /**
    * @brief save current time video frame to jpeg and write as a jpeg
    *
-   * @param channel channel name
-   * @param uid user identify local camera uid set as 0,
-   * @param filePath path to save jpeg
-   * @param callback callback for success or failure
-   * @return int
+   * param channel channel name
+   * param uid user identify local camera uid set as 0,
+   * param filePath path to save jpeg
+   * param callback callback for success or failure
+   * return int
    * - 0 : Success.
    * - <0 : Failure.
    */
-  virtual int takeSnapshot(const char* channel, uid_t uid, const char* filePath, ISnapshotCallback* callback) { return 0; }
+  virtual int takeSnapshot(const char* channel, uid_t uid, const char* filePath) = 0;
 
   /** Enable the content inspect.
 
-    @param enabled Sets whether or not to enable content inspect:
+    param enabled Sets whether or not to enable content inspect:
   - true: enables content inspect.
   - false: disables content inspect.
 
