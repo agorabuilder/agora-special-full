@@ -186,6 +186,20 @@ public:
         (void)reason;
         (void)elapsed;
     }
+
+    virtual void onVideoBufferingStateChanged(IChannel *rtcChannel, uid_t uid, VIDEO_BUFFERING_STATE state, int64_t timestampInMs) {
+        (void)rtcChannel;
+        (void)uid;
+        (void)state;
+        (void)timestampInMs;
+    }
+
+    virtual void onRemoteStreamSubscribeAdvice(IChannel *rtcChannel, uid_t uid, SUBSCRIPTION_STREAM_TYPE currentStreamType, SUBSCRIPTION_STREAM_TYPE suitableStreamType) {
+		(void)rtcChannel;
+        (void)uid;
+        (void)currentStreamType;
+        (void)suitableStreamType;
+	}
     
     virtual void onStreamMessage(IChannel *rtcChannel, uid_t uid, int streamId, const char* data, size_t length) {
         (void)rtcChannel;
@@ -263,6 +277,14 @@ public:
         (void)state;
         (void)reason;
     }
+
+    virtual void onChannelCallIdUpdated(IChannel *rtcChannel,
+                                          const char *channelCallId,
+                                          int error) {
+        (void)rtcChannel;
+        (void)channelCallId;
+        (void)error;
+    }
 };
 
 class IChannel
@@ -284,12 +306,32 @@ public:
                                            const ChannelMediaOptions& options) = 0;
     
     virtual int leaveChannel() = 0;
+
+    virtual int setAVSyncSource(const char *channelId, uid_t uid) = 0;
     
-    /** Allows this connection to upload stream. This method will unpublish the current publishing connection if there exists.
+    /** Publishes the local stream to the channel.
+     
+     You must keep the following restrictions in mind when calling this method. Otherwise, the SDK returns the #ERR_REFUSED (5):
+     - This method publishes one stream only to the channel corresponding to the current `IChannel` object.
+     - In the interactive live streaming channel, only a host can call this method. To switch the client role, call \ref agora::rtc::IChannel::setClientRole "setClientRole" of the current `IChannel` object.
+     - You can publish a stream to only one channel at a time. For details on joining multiple channels, see the advanced guide *Join Multiple Channels*.
+     
+     @return
+     - 0: Success.
+     - < 0: Failure.
+     - #ERR_REFUSED (5): The method call is refused.
      */
     virtual int publish() = 0;
     
-    /** Stops publishing stream.
+    /** Stops publishing a stream to the channel.
+     
+     If you call this method in a channel where you are not publishing streams, the SDK returns #ERR_REFUSED (5).
+     Leave channel will auto call this method if you are publishing a stream with this channel.
+     
+     @return
+     - 0: Success.
+     - < 0: Failure.
+     - #ERR_REFUSED (5): The method call is refused.
      */
     virtual int unpublish() = 0;
     
@@ -300,6 +342,8 @@ public:
     virtual const char *channelId() = 0;
     
     virtual int getCallId(agora::util::AString& callId) = 0;
+
+    virtual int getChannelCallId(char callId[MAX_CHANNEL_CALL_ID_LENGTH]) = 0;
 
     virtual int renewToken(const char* token) = 0;
     
@@ -322,7 +366,11 @@ public:
     virtual int setDefaultMuteAllRemoteAudioStreams(bool mute) = 0;
     
     virtual int setDefaultMuteAllRemoteVideoStreams(bool mute) = 0;
-    
+
+    virtual int muteLocalAudioStream(bool mute) = 0;
+
+    virtual int muteLocalVideoStream(bool mute) = 0;
+
     virtual int muteAllRemoteAudioStreams(bool mute) = 0;
     
     virtual int muteRemoteAudioStream(uid_t userId, bool mute) = 0;
@@ -332,6 +380,8 @@ public:
     virtual int muteRemoteVideoStream(uid_t userId, bool mute) = 0;
     
     virtual int setRemoteVideoStreamType(uid_t userId, REMOTE_VIDEO_STREAM_TYPE streamType) = 0;
+
+    virtual int applyRemoteStreamSubscribeAdvice(uid_t uid, SUBSCRIPTION_STREAM_TYPE streamType) = 0;
     
     virtual int setRemoteDefaultVideoStreamType(REMOTE_VIDEO_STREAM_TYPE streamType) = 0;
 
